@@ -12,3 +12,5 @@ setwd("/Users/Kyle Jones/OneDrive/Desktop/GT-7406-StatisticalLearning/course_pro
 # Read in Data
 dat <- read.table(file="./data_files/train.csv", 
                   sep = ",", header=TRUE)
+
+# Exploratory Analysis
