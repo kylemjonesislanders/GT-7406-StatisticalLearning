@@ -57,6 +57,18 @@ ggplot(dat, aes(TotalSquareFootage, LogSalePrice)) +
   theme_bw(base_size = 16)
 dev.off()
 
+### Just Square Footage with outliers removed - r2 = 0.598
+jpeg(file="./exploratory/images/square_footage_basic_wo_outliers.jpeg",
+     width=width_image, height=height_image)
+ggplot(dat[dat$TotalSquareFootage<7000, ], aes(TotalSquareFootage, LogSalePrice)) +
+  geom_point(color='red') +
+  geom_smooth(method='lm') +
+  geom_text(x = 1500, y = 13.5, label = "r2 = 0.67") +
+  xlab("Total Square Footage") +
+  ylab("Log of Sale Price") +
+  theme_bw(base_size = 16)
+dev.off()
+
 ### Square Footage by SaleCondition
 jpeg(file="./exploratory/images/square_footage_byCondition.jpeg",
      width=width_image, height=height_image)
@@ -93,9 +105,9 @@ plot_df <- rbind(dat[dat$Neighborhood==max_neighborhood, c("Neighborhood", "Pric
                  dat[dat$Neighborhood==min_neighborhood, c("Neighborhood", "PricePerSqFoot")])
 jpeg(file="./exploratory/images/price_psf_by_neighborhood.jpeg",
      width=width_image, height=height_image)
-plot_1 <- ggplot(plot_df, aes(x = Neighborhood, y = PricePerSqFoot, colour = Neighborhood)) +
-                 geom_boxplot() + 
-                 theme_bw(base_size = 12) + 
-                 ylab("Price per Square Foot") +
-                 scale_y_continuous(labels=function(x) paste0('$',x))
+ggplot(plot_df, aes(x = Neighborhood, y = PricePerSqFoot, colour = Neighborhood)) +
+      geom_boxplot() + 
+      theme_bw(base_size = 16) + 
+      ylab("Price per Square Foot") +
+      scale_y_continuous(labels=function(x) paste0('$',x))
 dev.off()
