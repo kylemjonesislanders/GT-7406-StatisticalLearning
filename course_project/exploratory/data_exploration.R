@@ -4,7 +4,7 @@ library("scales")
 library("Hmisc")
 
 # Set working directory
-setwd("/Users/Kyle Jones/OneDrive/Desktop/GT-7406-StatisticalLearning/course_project")
+setwd("/Users/kjone332/Desktop/RStudio_Projects/GT-7406-StatisticalLearning/course_project")
 
 # Read in training data
 dat <- read.table(file="./data_files/train.csv", sep = ",", header=TRUE)
@@ -12,6 +12,7 @@ dat <- read.table(file="./data_files/train.csv", sep = ",", header=TRUE)
 # User created variables
 dat$LogSalePrice <- log(dat$SalePrice)
 dat$TotalSquareFootage <- dat$TotalBsmtSF + dat$GrLivArea
+dat$PricePerSqFoot <- dat$SalePrice/dat$TotalSquareFootage
 dat$LogPricePerSqFoot <- dat$LogSalePrice/dat$TotalSquareFootage
 
 # Exploratory Analysis
@@ -76,24 +77,25 @@ for (neighborhood in unique_neighborhoods){
   temp_dat <- dat[dat$Neighborhood==neighborhood, ]
   number_obs <- nrow(temp_dat)
   output[iterator, 1] <- neighborhood
-  output[iterator, 2] <- median(temp_dat$LogPricePerSqFoot)
+  output[iterator, 2] <- median(temp_dat$PricePerSqFoot)
   output[iterator, 3] <- number_obs
   iterator <- iterator+1
 }
+# Convert to dataframe
+output <- as.data.frame(output)
+colnames(output) <- c("neighborhood", 'ppsqft', 'n')
+output <- transform(output, ppsqft = as.numeric(ppsqft), n = as.numeric(n))
+# Get neighborhoods with min and max cost
+max_neighborhood <- output[output$ppsqft == max(output$ppsqft), "neighborhood"]
+min_neighborhood <- output[output$ppsqft == min(output$ppsqft), "neighborhood"]
+# Create Dataframe for plot
+plot_df <- rbind(dat[dat$Neighborhood==max_neighborhood, c("Neighborhood", "PricePerSqFoot")],
+                 dat[dat$Neighborhood==min_neighborhood, c("Neighborhood", "PricePerSqFoot")])
 jpeg(file="./exploratory/images/price_psf_by_neighborhood.jpeg",
      width=width_image, height=height_image)
-MeadowV <- dat[dat$Neighborhood=="MeadowV", ]
-plot_1 <- ggplot(MeadowV, aes(x = Neighborhood, y = LogPricePerSqFoot)) +
+plot_1 <- ggplot(plot_df, aes(x = Neighborhood, y = PricePerSqFoot, colour = Neighborhood)) +
                  geom_boxplot() + 
                  theme_bw(base_size = 12) + 
-                 ylim(0,0.01) + 
-                 ylab("Price per Log Square Foot")
-
-NoRidge <- dat[dat$Neighborhood=="NoRidge", ]
-plot_2 <- ggplot(NoRidge, aes(x = Neighborhood, y = LogPricePerSqFoot)) +
-                 geom_boxplot() + 
-                 theme_bw(base_size = 12) + 
-                 ylim(0,0.01) + 
-                 ylab("Price per Log Square Foot")
-plot_grid(plot_1, plot_2, labels = "AUTO") 
+                 ylab("Price per Square Foot") +
+                 scale_y_continuous(labels=function(x) paste0('$',x))
 dev.off()
