@@ -103,11 +103,81 @@ min_neighborhood <- output[output$ppsqft == min(output$ppsqft), "neighborhood"]
 # Create Dataframe for plot
 plot_df <- rbind(dat[dat$Neighborhood==max_neighborhood, c("Neighborhood", "PricePerSqFoot")],
                  dat[dat$Neighborhood==min_neighborhood, c("Neighborhood", "PricePerSqFoot")])
-jpeg(file="./exploratory/images/price_psf_by_neighborhood.jpeg",
+jpeg(file="./exploratory/images/Neighborhood_ppsqf.jpeg",
      width=width_image, height=height_image)
 ggplot(plot_df, aes(x = Neighborhood, y = PricePerSqFoot, colour = Neighborhood)) +
       geom_boxplot() + 
       theme_bw(base_size = 16) + 
       ylab("Price per Square Foot") +
       scale_y_continuous(labels=function(x) paste0('$',x))
+dev.off()
+
+
+### Price per square foot by year of remodel
+unique_years <- unique(as.character(dat$YearRemodAdd))
+output <- matrix(ncol=3, nrow=61)
+iterator <- 1
+for (year in unique_years){
+  temp_dat <- dat[dat$YearRemodAdd==year, ]
+  number_obs <- nrow(temp_dat)
+  output[iterator, 1] <- year
+  output[iterator, 2] <- median(temp_dat$PricePerSqFoot)
+  output[iterator, 3] <- number_obs
+  iterator <- iterator+1
+}
+# Convert to dataframe
+output <- as.data.frame(output)
+colnames(output) <- c("yearremod", 'ppsqft', 'n')
+output <- transform(output, 
+                    yearremod = as.numeric(yearremod), 
+                    ppsqft = as.numeric(ppsqft), 
+                    n = as.numeric(n))
+jpeg(file="./exploratory/images/YearRemod_ppsqft.jpeg",
+     width=width_image, height=height_image)
+ggplot(output, aes(yearremod, ppsqft)) +
+  geom_point() +
+  xlab("Year of Remodel") +
+  ylab("Price Per Square Foot") + 
+  theme_bw(base_size = 16) + 
+  scale_y_continuous(labels=function(x) paste0('$',x))
+dev.off()
+
+### Number of Bathrooms
+dat$BsmtBathrooms <- dat$BsmtFullBath + dat$BsmtHalfBath
+dat$FullBathrooms <- dat$FullBath + dat$HalfBath
+dat$TotalBathooms <- dat$BsmtBathrooms + dat$FullBathrooms
+unique_bathrooms <- unique(dat$TotalBathooms)
+output <- matrix(ncol=3, nrow=length(unique_bathrooms))
+iterator <- 1
+for (bathroom in unique_bathrooms){
+  temp_dat <- dat[dat$TotalBathooms==bathroom, ]
+  number_obs <- nrow(temp_dat)
+  output[iterator, 1] <- bathroom
+  output[iterator, 2] <- median(temp_dat$PricePerSqFoot)
+  output[iterator, 3] <- number_obs
+  iterator <- iterator+1
+}
+# Convert to dataframe
+output <- as.data.frame(output)
+colnames(output) <- c("bathrooms", 'ppsqft', 'n')
+output <- transform(output, 
+                    bathrooms = as.numeric(bathrooms), 
+                    ppsqft = as.numeric(ppsqft), 
+                    n = as.numeric(n))
+# Adjust for 4+ bathrooms
+dat$TotalBathooms <- ifelse(dat$TotalBathooms > 4, 4, dat$TotalBathooms)
+# Create DataFrame for plot
+plot_df <- rbind(dat[dat$TotalBathooms==1, c("TotalBathooms", "PricePerSqFoot")],
+                 dat[dat$TotalBathooms==2, c("TotalBathooms", "PricePerSqFoot")],
+                 dat[dat$TotalBathooms==3, c("TotalBathooms", "PricePerSqFoot")],
+                 dat[dat$TotalBathooms==4, c("TotalBathooms", "PricePerSqFoot")])
+jpeg(file="./exploratory/images/TotalBathrooms_ppsqf.jpeg",
+     width=width_image, height=height_image)
+ggplot(plot_df, aes(x = TotalBathooms, y = PricePerSqFoot, group = TotalBathooms)) +
+  geom_boxplot() + 
+  theme_bw(base_size = 16) + 
+  xlab("Total Bathrooms") +
+  ylab("Price per Square Foot") +
+  scale_x_continuous(breaks = c(1, 2, 3, 4), label = c('1', '2', '3', '4+')) +
+  scale_y_continuous(labels=function(x) paste0('$',x))
 dev.off()
