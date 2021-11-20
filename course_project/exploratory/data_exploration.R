@@ -57,7 +57,7 @@ ggplot(dat, aes(TotalSquareFootage, LogSalePrice)) +
   theme_bw(base_size = 16)
 dev.off()
 
-### Just Square Footage with outliers removed - r2 = 0.598
+### Just Square Footage with outliers removed - r2 = 0.67
 jpeg(file="./exploratory/images/square_footage_basic_wo_outliers.jpeg",
      width=width_image, height=height_image)
 ggplot(dat[dat$TotalSquareFootage<7000, ], aes(TotalSquareFootage, LogSalePrice)) +
@@ -69,7 +69,12 @@ ggplot(dat[dat$TotalSquareFootage<7000, ], aes(TotalSquareFootage, LogSalePrice)
   theme_bw(base_size = 16)
 dev.off()
 
+
+### Remove outliers
+dat <- dat[dat$TotalSquareFootage<7000, ]
+
 ### Square Footage by SaleCondition
+# Basic Scatter Plot, colored by condition
 jpeg(file="./exploratory/images/square_footage_byCondition.jpeg",
      width=width_image, height=height_image)
 names(dat)[names(dat) == "SaleCondition"] <- "Sale Condition"
@@ -79,6 +84,26 @@ ggplot(dat, aes(TotalSquareFootage, LogSalePrice, colour = `Sale Condition`)) +
   ylab("Log of Sale Price") + 
   xlim(0,7000) + 
   theme_bw(base_size = 16)
+dev.off()
+# Price per square foot by condition
+plot_df <- rbind(dat[dat$`Sale Condition`=="Normal", c("Sale Condition", "PricePerSqFoot")],
+                 dat[dat$`Sale Condition`=="Abnorml", c("Sale Condition", "PricePerSqFoot")],
+                 dat[dat$`Sale Condition`=="Partial", c("Sale Condition", "PricePerSqFoot")],
+                 dat[dat$`Sale Condition`=="AdjLand", c("Sale Condition", "PricePerSqFoot")],
+                 dat[dat$`Sale Condition`=="Alloca", c("Sale Condition", "PricePerSqFoot")],
+                 dat[dat$`Sale Condition`=="Family", c("Sale Condition", "PricePerSqFoot")])
+jpeg(file="./exploratory/images/SaleCondition_ppsqf.jpeg",
+     width=width_image, height=height_image)
+ggplot(plot_df, aes(x = `Sale Condition`, y = PricePerSqFoot, colour = `Sale Condition`)) +
+  geom_boxplot() + 
+  theme_bw(base_size = 16) + 
+  xlab(" ") +
+  ylab("Price per Square Foot") +
+  scale_x_discrete(breaks = c('Abnorml', 'AdjLand', 'Alloca', 
+                              'Family', 'Normal', 'Partial'), 
+                   label = c('Abnorml\nN=100', 'AdjLand\nN=4', 'Alloca\nN=12', 
+                             'Family\nN=20', 'Normal\nN=1198', 'Partial\nN=123')) +
+  scale_y_continuous(labels=function(x) paste0('$',x))
 dev.off()
 
 ### Price per square foot by Neighborhood
