@@ -5,6 +5,11 @@ rm(list=ls())
 library("ggplot2")
 library("scales")
 library("Hmisc")
+library("leaps")
+library("MASS")
+library("lars")
+library("randomForest")
+library("caret")
 
 # Set working directory
 setwd("/Users/kjone332/Desktop/RStudio_Projects/GT-7406-StatisticalLearning/course_project")
@@ -89,7 +94,7 @@ set.seed(70)
 # Define number of iterations to perform during CV
 B = 100
 # Initialize matrix to hold values in loop
-error_results <- matrix(ncol=4, nrow=1*B*2)
+error_results <- matrix(ncol=4, nrow=4*B*2)
 iterator <- 1
 
 for (b in 1:B){
@@ -100,7 +105,7 @@ for (b in 1:B){
   testtemp <- model_dat[-flag,]
   ytest <- testtemp$LogSalePrice
 
-  # 1) Linear regression with all predictors
+  # 1) Linear regression
   model1 <- lm(LogSalePrice ~ ., data = traintemp)
   predictions_train <- predict(model1, traintemp[ , 2:ncol(traintemp)])
   rmse_train <- sqrt(mean((ytrain - predictions_train)^2))
@@ -110,6 +115,80 @@ for (b in 1:B){
   error_results[iterator, 1:4] <- c('Linear Regression', b, rmse_train, 'Train')
   iterator <- iterator + 1
   error_results[iterator, 1:4] <- c('Linear Regression', b, rmse_test, 'Test')
+  iterator <- iterator + 1
+  
+  # 2) Ridge Regression
+  model2 <- lm.ridge(LogSalePrice ~ ., data = traintemp, lambda= seq(0,100,0.001))
+  optimal_lambda_index <- which.min(model2$GCV) 
+  ridge.coeffs = model2$coef[,optimal_lambda_index]/ model2$scales # Unscale x vars
+  intercept = -sum( ridge.coeffs * colMeans(traintemp[,2:ncol(traintemp)] ) )+ mean(traintemp[,1])
+  predictions_train <- as.matrix(traintemp[,2:ncol(traintemp)]) %*% as.vector(ridge.coeffs) + intercept
+  rmse_train <- sqrt(mean((ytrain - predictions_train)^2))
+  predictions_test <- as.matrix(testtemp[,2:ncol(testtemp)]) %*% as.vector(ridge.coeffs) + intercept
+  rmse_test <- sqrt(mean((ytest - predictions_test)^2))
+  
+  error_results[iterator, 1:4] <- c('Ridge Regression', b, rmse_train, 'Train')
+  iterator <- iterator + 1
+  error_results[iterator, 1:4] <- c('Ridge Regression', b, rmse_test, 'Test')
+  iterator <- iterator + 1
+  
+  # 3) Lasso Regression
+  model3 <- lars(as.matrix(traintemp[,2:ncol(traintemp)]), traintemp$LogSalePrice, type= "lasso", trace= TRUE)
+  Cps <- summary(model3)$Cp
+  optimal_lambda_index <- which.min(Cps)
+  optimal_lambda <- model3$lambda[optimal_lambda_index-1]
+  predictions_train <- predict(model3, as.matrix(traintemp[,2:ncol(traintemp)]), s=optimal_lambda, type="fit", mode="lambda")$fit
+  rmse_train <- sqrt(mean((ytrain - predictions_train)^2))
+  predictions_test <- predict(model3, as.matrix(testtemp[,2:ncol(testtemp)]), s=optimal_lambda, type="fit", mode="lambda")$fit
+  rmse_test <- sqrt(mean((ytest - predictions_test)^2))
+  
+  error_results[iterator, 1:4] <- c('Lasso Regression', b, rmse_train, 'Train')
+  iterator <- iterator + 1
+  error_results[iterator, 1:4] <- c('Lasso Regression', b, rmse_test, 'Test')
+  iterator <- iterator + 1
+  
+  # 4) Random Forest
+  modellist <- list()
+  control <- trainControl(method='boot',
+                          number=5,
+                          search='grid')
+  tunegrid <- expand.grid(.mtry = (1:10))
+  for (ntree in c(3, 10, 100, 500)){
+    fit <- train(LogSalePrice ~ .,
+                 data = traintemp,
+                 method = 'rf',
+                 metric = 'RMSE',
+                 tuneGrid = tunegrid,
+                 trControl = control,
+                 ntree = ntree)
+    key <- toString(ntree)
+    modellist[[key]] <- fit
+  }
+  results_3 <- modellist$`3`$results[, c('mtry', 'RMSE')]
+  results_3$ntree <- 3
+  results_10 <- modellist$`10`$results[, c('mtry', 'RMSE')]
+  results_10$ntree <- 10
+  results_100 <- modellist$`100`$results[, c('mtry', 'RMSE')]
+  results_100$ntree <- 100
+  results_500 <- modellist$`500`$results[, c('mtry', 'RMSE')]
+  results_500$ntree <- 500
+  final_df <- rbind(results_3, results_10, results_100, results_500)
+  best_result <- final_df[which(final_df$RMSE==min(final_df$RMSE)), ]
+  optimal_mtry <- best_result$mtry
+  optimal_ntree <- best_result$ntree
+  rf_optimal <- randomForest(LogSalePrice ~.,
+                             data=traintemp,
+                             ntree= optimal_ntree,
+                             mtry=optimal_mtry,
+                             importance=TRUE)
+  predictions_train <- predict(rf_optimal, traintemp)
+  rmse_train <- sqrt(mean((ytrain - predictions_train)^2))
+  predictions_test <- predict(rf_optimal, testtemp)
+  rmse_test <- sqrt(mean((ytest - predictions_test)^2))
+  
+  error_results[iterator, 1:4] <- c('Random Forest', b, rmse_train, 'Train')
+  iterator <- iterator + 1
+  error_results[iterator, 1:4] <- c('Random Forest', b, rmse_test, 'Test')
   iterator <- iterator + 1
 }
 
@@ -123,8 +202,12 @@ plot_df$Group <- as.character(plot_df$Group)
 plot_df$Group <- factor(plot_df$Group,
                         levels = c('Train','Test'))
 # Plot
+jpeg(file="./modeling/images/MonteCarloResults.jpeg",
+     width=600, height=350)
 ggplot(plot_df, aes(x = Model, y = Value, fill=Group)) +
        geom_boxplot() +
+       theme_bw(base_size = 16) + 
        ylab("RMSE") +
        xlab("Model") +
        theme(legend.title=element_blank())
+dev.off()
