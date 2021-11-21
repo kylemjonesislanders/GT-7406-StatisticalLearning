@@ -33,11 +33,6 @@ train_dat <- train_dat[train_dat$TotalSquareFootage<7000, ]
 model_dat_train <- train_dat[ , c("LogSalePrice", "TotalSquareFootage", "YearRemodAdd")]
 model_dat_test <- test_dat[ , c("TotalSquareFootage", "YearRemodAdd")]
 
-# Fill in missing data with median value
-for(i in 1:ncol(model_dat_test)){
-  model_dat_test[is.na(model_dat_test[,i]), i] <- median(model_dat_test[,i], na.rm = TRUE)
-}
-
 # Scale continuous x predictors
 train_mean <- apply(model_dat_train[, c("TotalSquareFootage", "YearRemodAdd")],2,mean)
 train_sd <- apply(model_dat_train[, c("TotalSquareFootage", "YearRemodAdd")],2,sd)
@@ -126,6 +121,11 @@ predictions_train <- as.matrix(model_dat_train[,2:ncol(model_dat_train)]) %*% as
 rmse_train <- sqrt(mean((model_dat_train$LogSalePrice - predictions_train)^2))
 
 # Predict on Test Set
+
+# Fill in missing data with median value
+for(i in 1:ncol(model_dat_test)){
+  model_dat_test[is.na(model_dat_test[,i]), i] <- median(model_dat_test[,i], na.rm = TRUE)
+}
 ids <- test_dat$Id
 predictions_test_log <- as.matrix(model_dat_test) %*% as.vector(ridge.coeffs) + intercept
 predictions_test_normal <- exp(predictions_test_log)
