@@ -206,3 +206,40 @@ ggplot(plot_df, aes(x = TotalBathooms, y = PricePerSqFoot, group = TotalBathooms
   scale_x_continuous(breaks = c(1, 2, 3, 4), label = c('1', '2', '3', '4+')) +
   scale_y_continuous(labels=function(x) paste0('$',x))
 dev.off()
+
+# Garage Cars
+unique_garages <- unique(dat$GarageCars)
+output <- matrix(ncol=3, nrow=length(unique_garages))
+iterator <- 1
+for (garage in unique_garages){
+  temp_dat <- dat[dat$GarageCars==garage, ]
+  number_obs <- nrow(temp_dat)
+  output[iterator, 1] <- garage
+  output[iterator, 2] <- median(temp_dat$PricePerSqFoot)
+  output[iterator, 3] <- number_obs
+  iterator <- iterator+1
+}
+# Convert to dataframe
+output <- as.data.frame(output)
+colnames(output) <- c("garages", 'ppsqft', 'n')
+output <- transform(output, 
+                    garages = as.numeric(garages), 
+                    ppsqft = as.numeric(ppsqft), 
+                    n = as.numeric(n))
+# Adjust for 3+ garages
+dat$TotalGarages <- ifelse(dat$GarageCars > 3, 3, dat$GarageCars)
+# Create DataFrame for plot
+plot_df <- rbind(dat[dat$TotalGarages==0, c("TotalGarages", "PricePerSqFoot")],
+                 dat[dat$TotalGarages==1, c("TotalGarages", "PricePerSqFoot")],
+                 dat[dat$TotalGarages==2, c("TotalGarages", "PricePerSqFoot")],
+                 dat[dat$TotalGarages==3, c("TotalGarages", "PricePerSqFoot")])
+jpeg(file="./exploratory/images/TotalGarages_ppsqf.jpeg",
+     width=width_image, height=height_image)
+ggplot(plot_df, aes(x = TotalGarages, y = PricePerSqFoot, group = TotalGarages)) +
+  geom_boxplot() + 
+  theme_bw(base_size = 16) + 
+  xlab("Total Garages") +
+  ylab("Price per Square Foot") +
+  scale_x_continuous(breaks = c(0,1,2,3), label = c('0', '1', '2', '3+')) +
+  scale_y_continuous(labels=function(x) paste0('$',x))
+dev.off()
