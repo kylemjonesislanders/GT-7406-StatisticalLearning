@@ -203,7 +203,7 @@ plot_df$Group <- factor(plot_df$Group,
                         levels = c('Train','Test'))
 # Plot
 jpeg(file="./modeling/images/MonteCarloResults.jpeg",
-     width=600, height=350)
+     width=750, height=450)
 ggplot(plot_df, aes(x = Model, y = Value, fill=Group)) +
        geom_boxplot() +
        theme_bw(base_size = 16) + 
