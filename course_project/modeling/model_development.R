@@ -81,3 +81,50 @@ model_dat$PartialxTotalSquareFootage <- model_dat$TotalSquareFootage*model_dat$S
 #summary(mod)
 
 # Monte Carlo Cross Validation
+n1 = 1166
+n2 = 292
+n = dim(model_dat)[1]
+# Set seed for randomization
+set.seed(70)
+# Define number of iterations to perform during CV
+B = 100
+# Initialize matrix to hold values in loop
+error_results <- matrix(ncol=4, nrow=1*B*2)
+iterator <- 1
+
+for (b in 1:B){
+  # Isolate train and test sets
+  flag <- sort(sample(1:n, n1))
+  traintemp <- model_dat[flag,]
+  ytrain <- traintemp$LogSalePrice
+  testtemp <- model_dat[-flag,]
+  ytest <- testtemp$LogSalePrice
+
+  # 1) Linear regression with all predictors
+  model1 <- lm(LogSalePrice ~ ., data = traintemp)
+  predictions_train <- predict(model1, traintemp[ , 2:ncol(traintemp)])
+  rmse_train <- sqrt(mean((ytrain - predictions_train)^2))
+  predictions_test <- predict(model1, testtemp[ , 2:ncol(testtemp)])
+  rmse_test <- sqrt(mean((ytest - predictions_test)^2))
+
+  error_results[iterator, 1:4] <- c('Linear Regression', b, rmse_train, 'Train')
+  iterator <- iterator + 1
+  error_results[iterator, 1:4] <- c('Linear Regression', b, rmse_test, 'Test')
+  iterator <- iterator + 1
+}
+
+# Create dataframe for plot
+plot_df <- data.frame(error_results)
+plot_df <- plot_df[complete.cases(plot_df), ]
+plot_df[, 3] <- sapply(plot_df[, 3], as.character)
+plot_df[, 3] <- sapply(plot_df[, 3], as.numeric)
+colnames(plot_df) <- c("Model", "B", "Value", 'Group')
+plot_df$Group <- as.character(plot_df$Group)
+plot_df$Group <- factor(plot_df$Group,
+                        levels = c('Train','Test'))
+# Plot
+ggplot(plot_df, aes(x = Model, y = Value, fill=Group)) +
+       geom_boxplot() +
+       ylab("RMSE") +
+       xlab("Model") +
+       theme(legend.title=element_blank())
