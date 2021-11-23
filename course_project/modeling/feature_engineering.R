@@ -15,9 +15,7 @@ dat$Id <- NULL
 
 # Handle NAN issue
 ## List of NaN including columns where NaNs mean none.
-none_cols <- c('Alley', 'PoolQC', 'Fence', 'FireplaceQu', 'GarageType',
-               'GarageFinish', 'GarageQual', 'GarageCond', 'BsmtQual', 'BsmtCond',
-               'BsmtExposure', 'BsmtFinType1', 'MasVnrType')
+none_cols <- c('Fence')
 for(col in none_cols){
   dat[is.na(dat[,col]), col] <- 'None'
 }
@@ -99,6 +97,7 @@ dat$GarageCar1 <- ifelse(dat$GarageCars==1, 1, 0)
 dat$GarageCar2 <- ifelse(dat$GarageCars==2, 1, 0)
 dat$GarageCar3 <- ifelse(dat$GarageCars>=3, 1, 0)
 dat$FirePlace <- ifelse(dat$Fireplaces>=1, 1, 0)
+dat$CentralAirConditioning <- ifelse(dat$CentralAir=='Y', 1, 0)
 dat$PartialxTotalSquareFootage <- dat$TotalSquareFootage*dat$SaleConditionPartial
 PorchSF <- dat$OpenPorchSF + dat$X3SsnPorch + dat$EnclosedPorch + dat$ScreenPorch + dat$WoodDeckSF
 dat$Porch <- ifelse(PorchSF > 0, 1, 0)
@@ -108,3 +107,16 @@ for(zone in unique_zones){
   col_name <- paste0("MSZone_", zone)
   dat[,col_name] <- dummy_code
 }
+unique_SubClasses <- unique(dat$MSSubClass)
+for(class in unique_SubClasses){
+  dummy_code <- ifelse(dat$MSSubClass==class, 1, 0)
+  col_name <- paste0("MSSubClass_", class)
+  dat[,col_name] <- dummy_code
+}
+railroad_codes <- c('RRNn', 'RRAn', 'RRNe', 'RRAe')
+dat$Railroad <- 0
+dat[which(dat$Condition1%in%railroad_codes), "Railroad"] <- 1
+dat[which(dat$Condition2%in%railroad_codes), "Railroad"] <- 1
+dat$Park <- 0
+dat[which(dat$Condition1=="PosN"), "Park"] <- 1
+dat[which(dat$Condition2=="PosN"), "Park"] <- 1
