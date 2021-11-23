@@ -15,75 +15,27 @@ library("caret")
 setwd("/Users/kjone332/Desktop/RStudio_Projects/GT-7406-StatisticalLearning/course_project")
 
 # Read in training data and initial feature engineering
-dat <- read.table(file="./data_files/train.csv", sep = ",", header=TRUE)
-dat$LogSalePrice <- log(dat$SalePrice)
-dat$TotalSquareFootage <- dat$TotalBsmtSF + dat$GrLivArea
-dat$BsmtBathrooms <- dat$BsmtFullBath + dat$BsmtHalfBath
-dat$FullBathrooms <- dat$FullBath + dat$HalfBath
-dat$TotalBathooms <- dat$BsmtBathrooms + dat$FullBathrooms
+train_dat <- read.table(file="./data_files/train.csv", sep = ",", header=TRUE)
 
-# Remove outliers
-dat <- dat[dat$TotalSquareFootage<7000, ]
+# Feature Engineering
+source('./modeling/feature_engineering.R')
+model_dat <- feature_engineering(train_dat)
+model_dat <- cbind(LogSalePrice = log(train_dat$SalePrice), model_dat)
 
-# Initialize model_dat with continuous x predictors and y
-model_dat <- dat[ , c("LogSalePrice", "TotalSquareFootage", "YearRemodAdd")]
+# Remove outlier based on square footage
+model_dat <- model_dat[model_dat$TotalSquareFootage<7000, ]
 
 # Scale continuous x predictors
-model_dat$TotalSquareFootage <- scale(model_dat$TotalSquareFootage)
-model_dat$YearRemodAdd <- scale(model_dat$YearRemodAdd)
+continuous_predictors <- c("LotFrontage", "YearRemodAdd", "NeighborhoodInt", "ExterQualInt",
+                           "ExterCondInt", "HeatingQCInt", "KitchenQualInt", "TotalSquareFootage",
+                           "TotalBathooms", "PartialxTotalSquareFootage", "GarageCars")
+for(col in continuous_predictors){
+  model_dat[ , col] <- scale(model_dat[ , col])
+}
 
-# User created categorical variables for model
-## Neighborhood
-model_dat$CollgCr <- ifelse(dat$Neighborhood=="CollgCr", 1, 0)
-model_dat$Veenker <- ifelse(dat$Neighborhood=="Veenker", 1, 0)
-model_dat$Crawfor <- ifelse(dat$Neighborhood=="Crawfor", 1, 0)
-model_dat$NoRidge <- ifelse(dat$Neighborhood=="NoRidge", 1, 0)
-model_dat$Mitchel <- ifelse(dat$Neighborhood=="Mitchel", 1, 0)
-model_dat$Somerst <- ifelse(dat$Neighborhood=="Somerst", 1, 0)
-model_dat$NWAmes <- ifelse(dat$Neighborhood=="NWAmes", 1, 0)
-model_dat$BrkSide <- ifelse(dat$Neighborhood=="BrkSide", 1, 0)
-model_dat$Sawyer <- ifelse(dat$Neighborhood=="Sawyer", 1, 0)
-model_dat$NridgHt <- ifelse(dat$Neighborhood=="NridgHt", 1, 0)
-model_dat$NAmes <- ifelse(dat$Neighborhood=="NAmes", 1, 0)
-model_dat$SawyerW <- ifelse(dat$Neighborhood=="SawyerW", 1, 0)
-model_dat$Timber <- ifelse(dat$Neighborhood=="Timber", 1, 0)
-model_dat$Gilbert <- ifelse(dat$Neighborhood=="Gilbert", 1, 0)
-model_dat$StoneBr <- ifelse(dat$Neighborhood=="StoneBr", 1, 0)
-model_dat$ClearCr <- ifelse(dat$Neighborhood=="ClearCr", 1, 0)
-model_dat$NPkVill <- ifelse(dat$Neighborhood=="NPkVill", 1, 0)
-model_dat$Blmngtn <- ifelse(dat$Neighborhood=="Blmngtn", 1, 0)
-model_dat$SWISU <- ifelse(dat$Neighborhood=="SWISU", 1, 0)
-model_dat$OldTown <- ifelse(dat$Neighborhood=="OldTown", 1, 0)
-model_dat$Edwards <- ifelse(dat$Neighborhood=="Edwards", 1, 0)
-#model_dat$BrDale <- ifelse(dat$Neighborhood=="BrDale", 1, 0)
-#model_dat$Blueste <- ifelse(dat$Neighborhood=="Blueste", 1, 0)
-#model_dat$IDOTRR <- ifelse(dat$Neighborhood=="IDOTRR", 1, 0)
-#model_dat$MeadowV <- ifelse(dat$Neighborhood=="MeadowV", 1, 0)
-# Sale Condition
-model_dat$SaleConditionAbnorml <- ifelse(dat$SaleCondition=="Abnorml", 1, 0)
-model_dat$SaleConditionFamily <- ifelse(dat$SaleCondition=="Family", 1, 0)
-model_dat$SaleConditionPartial <- ifelse(dat$SaleCondition=="Partial", 1, 0)
-# Total Bathrooms
-model_dat$TotalBathooms2 <- ifelse(dat$TotalBathooms==2, 1, 0)
-model_dat$TotalBathooms3 <- ifelse(dat$TotalBathooms==3, 1, 0)
-model_dat$TotalBathooms4 <- ifelse(dat$TotalBathooms>=4, 1, 0)
-# Fence
-model_dat$FenceGoodPrivacy <- ifelse(dat$Fence%in%c("GdPrv"), 1, 0)
-# Basement
-model_dat$BasementGoodCondition <- ifelse(dat$BsmtCond%in%c("Ex", "Gd"), 1, 0)
-# GarageCarSize
-model_dat$GarageCar1 <- ifelse(dat$GarageCars==1, 1, 0)
-model_dat$GarageCar2 <- ifelse(dat$GarageCars==2, 1, 0)
-model_dat$GarageCar3 <- ifelse(dat$GarageCars>=3, 1, 0)
-# FirePlaces
-model_dat$FirePlace <- ifelse(dat$Fireplaces>=1, 1, 0)
-
-# Interaction Term
-model_dat$PartialxTotalSquareFootage <- model_dat$TotalSquareFootage*model_dat$SaleConditionPartial
-
-# Build Test Model (R2 = 0.87)
-#mod <- lm(LogSalePrice ~., model_dat)
-#summary(mod)
+# Build Test Model (R2 = 0.895)
+mod <- lm(LogSalePrice ~., model_dat)
+summary(mod)
 
 # Monte Carlo Cross Validation
 n1 = 1166
@@ -94,7 +46,7 @@ set.seed(70)
 # Define number of iterations to perform during CV
 B = 100
 # Initialize matrix to hold values in loop
-error_results <- matrix(ncol=4, nrow=4*B*2)
+error_results <- matrix(ncol=4, nrow=6*B*2)
 iterator <- 1
 
 for (b in 1:B){
@@ -107,14 +59,14 @@ for (b in 1:B){
 
   # 1) Linear regression
   model1 <- lm(LogSalePrice ~ ., data = traintemp)
-  predictions_train <- predict(model1, traintemp[ , 2:ncol(traintemp)])
-  rmse_train <- sqrt(mean((ytrain - predictions_train)^2))
-  predictions_test <- predict(model1, testtemp[ , 2:ncol(testtemp)])
-  rmse_test <- sqrt(mean((ytest - predictions_test)^2))
+  predictions_train_LR <- predict(model1, traintemp[ , 2:ncol(traintemp)])
+  rmse_train <- sqrt(mean((ytrain - predictions_train_LR)^2))
+  predictions_test_LR <- predict(model1, testtemp[ , 2:ncol(testtemp)])
+  rmse_test <- sqrt(mean((ytest - predictions_test_LR)^2))
 
-  error_results[iterator, 1:4] <- c('Linear Regression', b, rmse_train, 'Train')
+  error_results[iterator, 1:4] <- c('Linear\nRegression', b, rmse_train, 'Train')
   iterator <- iterator + 1
-  error_results[iterator, 1:4] <- c('Linear Regression', b, rmse_test, 'Test')
+  error_results[iterator, 1:4] <- c('Linear\nRegression', b, rmse_test, 'Test')
   iterator <- iterator + 1
   
   # 2) Ridge Regression
@@ -122,29 +74,29 @@ for (b in 1:B){
   optimal_lambda_index <- which.min(model2$GCV) 
   ridge.coeffs = model2$coef[,optimal_lambda_index]/ model2$scales # Unscale x vars
   intercept = -sum( ridge.coeffs * colMeans(traintemp[,2:ncol(traintemp)] ) )+ mean(traintemp[,1])
-  predictions_train <- as.matrix(traintemp[,2:ncol(traintemp)]) %*% as.vector(ridge.coeffs) + intercept
-  rmse_train <- sqrt(mean((ytrain - predictions_train)^2))
-  predictions_test <- as.matrix(testtemp[,2:ncol(testtemp)]) %*% as.vector(ridge.coeffs) + intercept
-  rmse_test <- sqrt(mean((ytest - predictions_test)^2))
+  predictions_train_Ridge <- as.matrix(traintemp[,2:ncol(traintemp)]) %*% as.vector(ridge.coeffs) + intercept
+  rmse_train <- sqrt(mean((ytrain - predictions_train_Ridge)^2))
+  predictions_test_Ridge <- as.matrix(testtemp[,2:ncol(testtemp)]) %*% as.vector(ridge.coeffs) + intercept
+  rmse_test <- sqrt(mean((ytest - predictions_test_Ridge)^2))
   
-  error_results[iterator, 1:4] <- c('Ridge Regression', b, rmse_train, 'Train')
+  error_results[iterator, 1:4] <- c('Ridge\nRegression', b, rmse_train, 'Train')
   iterator <- iterator + 1
-  error_results[iterator, 1:4] <- c('Ridge Regression', b, rmse_test, 'Test')
+  error_results[iterator, 1:4] <- c('Ridge\nRegression', b, rmse_test, 'Test')
   iterator <- iterator + 1
   
   # 3) Lasso Regression
   model3 <- lars(as.matrix(traintemp[,2:ncol(traintemp)]), traintemp$LogSalePrice, type= "lasso", trace= TRUE)
   Cps <- summary(model3)$Cp
   optimal_lambda_index <- which.min(Cps)
-  optimal_lambda <- model3$lambda[optimal_lambda_index-1]
-  predictions_train <- predict(model3, as.matrix(traintemp[,2:ncol(traintemp)]), s=optimal_lambda, type="fit", mode="lambda")$fit
-  rmse_train <- sqrt(mean((ytrain - predictions_train)^2))
-  predictions_test <- predict(model3, as.matrix(testtemp[,2:ncol(testtemp)]), s=optimal_lambda, type="fit", mode="lambda")$fit
-  rmse_test <- sqrt(mean((ytest - predictions_test)^2))
+  optimal_lambda <- model3$lambda[optimal_lambda_index]
+  predictions_train_Lasso <- predict(model3, as.matrix(traintemp[,2:ncol(traintemp)]), s=optimal_lambda, type="fit", mode="lambda")$fit
+  rmse_train <- sqrt(mean((ytrain - predictions_train_Lasso)^2))
+  predictions_test_Lasso <- predict(model3, as.matrix(testtemp[,2:ncol(testtemp)]), s=optimal_lambda, type="fit", mode="lambda")$fit
+  rmse_test <- sqrt(mean((ytest - predictions_test_Lasso)^2))
   
-  error_results[iterator, 1:4] <- c('Lasso Regression', b, rmse_train, 'Train')
+  error_results[iterator, 1:4] <- c('Lasso\nRegression', b, rmse_train, 'Train')
   iterator <- iterator + 1
-  error_results[iterator, 1:4] <- c('Lasso Regression', b, rmse_test, 'Test')
+  error_results[iterator, 1:4] <- c('Lasso\nRegression', b, rmse_test, 'Test')
   iterator <- iterator + 1
   
   # 4) Random Forest
@@ -181,14 +133,41 @@ for (b in 1:B){
                              ntree= optimal_ntree,
                              mtry=optimal_mtry,
                              importance=TRUE)
-  predictions_train <- predict(rf_optimal, traintemp)
-  rmse_train <- sqrt(mean((ytrain - predictions_train)^2))
-  predictions_test <- predict(rf_optimal, testtemp)
-  rmse_test <- sqrt(mean((ytest - predictions_test)^2))
+  predictions_train_RF <- predict(rf_optimal, traintemp)
+  rmse_train <- sqrt(mean((ytrain - predictions_train_RF)^2))
+  predictions_test_RF <- predict(rf_optimal, testtemp)
+  rmse_test <- sqrt(mean((ytest - predictions_test_RF)^2))
   
-  error_results[iterator, 1:4] <- c('Random Forest', b, rmse_train, 'Train')
+  error_results[iterator, 1:4] <- c('Random\nForest', b, rmse_train, 'Train')
   iterator <- iterator + 1
-  error_results[iterator, 1:4] <- c('Random Forest', b, rmse_test, 'Test')
+  error_results[iterator, 1:4] <- c('Random\nForest', b, rmse_test, 'Test')
+  iterator <- iterator + 1
+  
+  # 5) KNN
+  trctrl <- trainControl(method = "repeatedcv", number = 10, repeats = 5)
+  knn_fit <- train(LogSalePrice ~., data = traintemp, method = "knn",
+                   trControl=trctrl,
+                   preProcess = c("center", "scale"),
+                   tuneLength = 20)
+  predictions_train_KNN <- predict(knn_fit, newdata = traintemp)
+  rmse_train <- sqrt(mean((ytrain - predictions_train_KNN)^2))
+  predictions_test_KNN <- predict(knn_fit, newdata = testtemp)
+  rmse_test <- sqrt(mean((ytest - predictions_test_KNN)^2))
+  error_results[iterator, 1:4] <- c('KNN', b, rmse_train, 'Train')
+  iterator <- iterator + 1
+  error_results[iterator, 1:4] <- c('KNN', b, rmse_test, 'Test')
+  iterator <- iterator + 1
+  
+  # 6) Ensemble Method
+  predictions_train_ensemble <- rowMeans(cbind(predictions_train_LR, predictions_train_Ridge,
+                                               predictions_train_Lasso, predictions_train_RF, predictions_train_KNN))
+  rmse_train <- sqrt(mean((ytrain - predictions_train_ensemble)^2))
+  predictions_test_ensemble <- rowMeans(cbind(predictions_test_LR, predictions_test_Ridge,
+                                              predictions_test_Lasso, predictions_test_RF, predictions_test_KNN))
+  rmse_test <- sqrt(mean((ytest - predictions_test_ensemble)^2))
+  error_results[iterator, 1:4] <- c('Ensemble', b, rmse_train, 'Train')
+  iterator <- iterator + 1
+  error_results[iterator, 1:4] <- c('Ensemble', b, rmse_test, 'Test')
   iterator <- iterator + 1
 }
 
