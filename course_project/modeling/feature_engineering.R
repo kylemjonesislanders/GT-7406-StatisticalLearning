@@ -22,14 +22,12 @@ for(col in none_cols){
   dat[is.na(dat[,col]), col] <- 'None'
 }
 ## List of NAN including columns where NaNs mean 0.
-zero_cols = c('BsmtFinSF1', 'BsmtFullBath', 'BsmtHalfBath', 
-              'GarageArea', 'GarageCars')
+zero_cols = c('TotalBsmtSF', 'BsmtFullBath', 'BsmtHalfBath', 'GarageCars')
 for(col in zero_cols){
   dat[is.na(dat[,col]), col] <- 0
 }
 ## List of NAN including columns where we want to fill with mode.
-freq_cols = c('Electrical', 'Exterior1st', 'Exterior2nd', 
-              'Functional', 'KitchenQual', 'SaleType', 'Utilities')
+freq_cols = c('KitchenQual', 'SaleType')
 for(col in freq_cols){
   ux <- unique(dat[,col])
   most_common <- ux[which.max(tabulate(match(dat[,col], ux)))]
@@ -85,4 +83,28 @@ for(quality in qualities){
   dat[which(dat$ExterCond==quality), "ExterCondInt"] <- rating
   dat[which(dat$HeatingQC==quality), "HeatingQCInt"] <- rating
   dat[which(dat$KitchenQual==quality), "KitchenQualInt"] <- rating
+}
+
+# Creating new features
+dat$TotalSquareFootage <- dat$TotalBsmtSF + dat$GrLivArea
+BsmtBathrooms <- dat$BsmtFullBath + 0.5*dat$BsmtHalfBath
+FullBathrooms <- dat$FullBath + 0.5*dat$HalfBath
+dat$TotalBathooms <- BsmtBathrooms + FullBathrooms
+dat$SaleConditionAbnorml <- ifelse(dat$SaleCondition=="Abnorml", 1, 0)
+dat$SaleConditionFamily <- ifelse(dat$SaleCondition=="Family", 1, 0)
+dat$SaleConditionPartial <- ifelse(dat$SaleCondition=="Partial", 1, 0)
+dat$FenceGoodPrivacy <- ifelse(dat$Fence%in%c("GdPrv"), 1, 0)
+dat$BasementGoodCondition <- ifelse(dat$BsmtCond%in%c("Ex", "Gd"), 1, 0)
+dat$GarageCar1 <- ifelse(dat$GarageCars==1, 1, 0)
+dat$GarageCar2 <- ifelse(dat$GarageCars==2, 1, 0)
+dat$GarageCar3 <- ifelse(dat$GarageCars>=3, 1, 0)
+dat$FirePlace <- ifelse(dat$Fireplaces>=1, 1, 0)
+dat$PartialxTotalSquareFootage <- dat$TotalSquareFootage*dat$SaleConditionPartial
+PorchSF <- dat$OpenPorchSF + dat$X3SsnPorch + dat$EnclosedPorch + dat$ScreenPorch + dat$WoodDeckSF
+dat$Porch <- ifelse(PorchSF > 0, 1, 0)
+unique_zones <- unique(dat$MSZoning)
+for(zone in unique_zones){
+  dummy_code <- ifelse(dat$MSZoning==zone, 1, 0)
+  col_name <- paste0("MSZone_", zone)
+  dat[,col_name] <- dummy_code
 }
