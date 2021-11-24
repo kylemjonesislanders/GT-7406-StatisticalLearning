@@ -40,16 +40,22 @@ feature_engineering <- function(dat){
 
   # Converting categorical values to numeric
   ## Neighborhood
-  neighborhoods <- c('MeadowV', 'IDOTRR', 'BrDale', 'BrkSide', 'OldTown',
-                    'Edwards', 'Sawyer', 'Blueste', 'SWISU', 'NPkVill',
-                    'NAmes', 'Mitchel', 'SawyerW', 'NWAmes', 'Gilbert',
-                    'Blmngtn', 'CollgCr', 'ClearCr', 'Crawfor', 'Veenker',
-                    'Somerst', 'Timber', 'StoneBr', 'NridgHt', 'NoRidge')
-  ratings <- c(1,1,1,2,2,
-              2,3,3,3,3,
-              3,4,5,5,5,
-              5,5,6,6,7,
-              7,8,9,10,10)
+  neighborhoods <- c('SWISU', 'IDOTRR',
+                     'OldTown', 'Edwards', 'BrDale', 'MeadowV',  
+                     'BrkSide',  'NAmes', 'NPkVill', 
+                     'Sawyer', 'NWAmes', 'Mitchel', 'Blueste', 'Blmngtn', 'ClearCr', 
+                     'SawyerW', 'CollgCr', 
+                     'Crawfor', 'Gilbert', 'Timber', 'Veenker',
+                     'NoRidge', 'Somerst',   
+                     'StoneBr', 'NridgHt')
+  ratings <- c(1,1,
+               2,2,2,2,
+               3,3,3,
+               4,4,4,4,4,4,
+               5,5,
+               6,6,6,6,
+               7,7,
+               8,8)
   neighborhood_rating <- data.frame(neighborhoods, ratings)
   dat$NeighborhoodInt <- 0
   unique_neighborhoods <- unique(dat$Neighborhood)
@@ -79,6 +85,7 @@ feature_engineering <- function(dat){
   BsmtBathrooms <- dat$BsmtFullBath + 0.5*dat$BsmtHalfBath
   FullBathrooms <- dat$FullBath + 0.5*dat$HalfBath
   dat$TotalBathooms <- BsmtBathrooms + FullBathrooms
+  dat$TotalBathooms <- ifelse(dat$TotalBathooms > 3.5, 3.5, dat$TotalBathooms)
   dat$SaleConditionAbnorml <- ifelse(dat$SaleCondition=="Abnorml", 1, 0)
   dat$SaleConditionFamily <- ifelse(dat$SaleCondition=="Family", 1, 0)
   dat$SaleConditionPartial <- ifelse(dat$SaleCondition=="Partial", 1, 0)

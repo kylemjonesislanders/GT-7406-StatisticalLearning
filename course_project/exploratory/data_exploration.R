@@ -106,6 +106,31 @@ ggplot(plot_df, aes(x = `Sale Condition`, y = PricePerSqFoot, colour = `Sale Con
   scale_y_continuous(labels=function(x) paste0('$',x))
 dev.off()
 
+### Price per square foot by Zone
+unique_zones <- unique(as.character(dat$MSZoning))
+output <- matrix(ncol=3, nrow=length(unique_zones))
+iterator <- 1
+for (zone in unique_zones){
+  temp_dat <- dat[dat$MSZoning==zone, ]
+  number_obs <- nrow(temp_dat)
+  output[iterator, 1] <- zone
+  output[iterator, 2] <- median(temp_dat$PricePerSqFoot)
+  output[iterator, 3] <- number_obs
+  iterator <- iterator+1
+}
+output <- as.data.frame(output)
+colnames(output) <- c("zones", 'ppsqft', 'n')
+output <- transform(output, ppsqft = as.numeric(ppsqft), n = as.numeric(n))
+jpeg(file="./exploratory/images/Zone_ppsqf.jpeg",
+     width=width_image, height=height_image)
+ggplot(dat, aes(x = MSZoning, y = PricePerSqFoot, group = MSZoning)) +
+  geom_boxplot() + 
+  theme_bw(base_size = 16) + 
+  xlab("MS Zone") +
+  ylab("Price per Square Foot") +
+  scale_y_continuous(labels=function(x) paste0('$',x))
+dev.off()
+
 ### Price per square foot by Neighborhood
 unique_neighborhoods <- unique(as.character(dat$Neighborhood))
 output <- matrix(ncol=3, nrow=25)
@@ -168,9 +193,9 @@ ggplot(output, aes(yearremod, ppsqft)) +
 dev.off()
 
 ### Number of Bathrooms
-dat$BsmtBathrooms <- dat$BsmtFullBath + dat$BsmtHalfBath
-dat$FullBathrooms <- dat$FullBath + dat$HalfBath
-dat$TotalBathooms <- dat$BsmtBathrooms + dat$FullBathrooms
+BsmtBathrooms <- dat$BsmtFullBath + 0.5*dat$BsmtHalfBath
+FullBathrooms <- dat$FullBath + 0.5*dat$HalfBath
+dat$TotalBathooms <- BsmtBathrooms + FullBathrooms
 unique_bathrooms <- unique(dat$TotalBathooms)
 output <- matrix(ncol=3, nrow=length(unique_bathrooms))
 iterator <- 1
@@ -190,7 +215,7 @@ output <- transform(output,
                     ppsqft = as.numeric(ppsqft), 
                     n = as.numeric(n))
 # Adjust for 4+ bathrooms
-dat$TotalBathooms <- ifelse(dat$TotalBathooms > 4, 4, dat$TotalBathooms)
+dat$TotalBathooms <- ifelse(dat$TotalBathooms > 3.5, 3.5, dat$TotalBathooms)
 # Create DataFrame for plot
 plot_df <- rbind(dat[dat$TotalBathooms==1, c("TotalBathooms", "PricePerSqFoot")],
                  dat[dat$TotalBathooms==2, c("TotalBathooms", "PricePerSqFoot")],
@@ -198,12 +223,13 @@ plot_df <- rbind(dat[dat$TotalBathooms==1, c("TotalBathooms", "PricePerSqFoot")]
                  dat[dat$TotalBathooms==4, c("TotalBathooms", "PricePerSqFoot")])
 jpeg(file="./exploratory/images/TotalBathrooms_ppsqf.jpeg",
      width=width_image, height=height_image)
-ggplot(plot_df, aes(x = TotalBathooms, y = PricePerSqFoot, group = TotalBathooms)) +
+ggplot(dat, aes(x = TotalBathooms, y = PricePerSqFoot, group = TotalBathooms)) +
   geom_boxplot() + 
   theme_bw(base_size = 16) + 
   xlab("Total Bathrooms") +
   ylab("Price per Square Foot") +
-  scale_x_continuous(breaks = c(1, 2, 3, 4), label = c('1', '2', '3', '4+')) +
+  scale_x_continuous(breaks = c(1, 1.5, 2, 2.5, 3, 3.5), 
+                     label = c('1', '1.5', '2', '2.5', '3', '3.5+')) +
   scale_y_continuous(labels=function(x) paste0('$',x))
 dev.off()
 

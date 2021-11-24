@@ -33,7 +33,7 @@ for(col in continuous_predictors){
   model_dat[ , col] <- scale(model_dat[ , col])
 }
 
-# Build Test Model (R2 = 0.895)
+# Build Test Model (R2 = 0.895, adjusted = .892)
 mod <- lm(LogSalePrice ~., model_dat)
 summary(mod)
 
