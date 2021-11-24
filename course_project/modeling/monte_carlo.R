@@ -46,7 +46,7 @@ set.seed(70)
 # Define number of iterations to perform during CV
 B = 100
 # Initialize matrix to hold values in loop
-error_results <- matrix(ncol=4, nrow=6*B*2)
+error_results <- matrix(ncol=4, nrow=7*B*2)
 iterator <- 1
 
 for (b in 1:B){
@@ -69,7 +69,28 @@ for (b in 1:B){
   error_results[iterator, 1:4] <- c('Linear\nRegression', b, rmse_test, 'Test')
   iterator <- iterator + 1
   
-  # 2) Ridge Regression
+  # 2) Linear regression significant vars
+  significnat_vars <-c("LogSalePrice", "LotFrontage", "YearRemodAdd", "NeighborhoodInt",
+                       "ExterQualInt", "ExterCondInt", "HeatingQCInt",
+                       "KitchenQualInt", "TotalSquareFootage", "TotalBathooms",
+                       "SaleConditionAbnorml", "SaleConditionFamily", 
+                       "SaleConditionPartial", "GarageCars", "FirePlace", 
+                       "CentralAirConditioning", "PartialxTotalSquareFootage",
+                       "MSZone_C")
+  traintemp_subset <- traintemp[ , significnat_vars]
+  testtemp_subset <- testtemp[ , significnat_vars]
+  model1b <- lm(LogSalePrice ~ ., data = traintemp_subset)
+  predictions_train_LRb <- predict(model1b, traintemp_subset[ , 2:ncol(traintemp_subset)])
+  rmse_train <- sqrt(mean((ytrain - predictions_train_LRb)^2))
+  predictions_test_LRb <- predict(model1b, testtemp_subset[ , 2:ncol(testtemp_subset)])
+  rmse_test <- sqrt(mean((ytest - predictions_test_LRb)^2))
+  
+  error_results[iterator, 1:4] <- c('Linear\nRegression\nSubset', b, rmse_train, 'Train')
+  iterator <- iterator + 1
+  error_results[iterator, 1:4] <- c('Linear\nRegression\nSubset', b, rmse_test, 'Test')
+  iterator <- iterator + 1
+  
+  # 3) Ridge Regression
   model2 <- lm.ridge(LogSalePrice ~ ., data = traintemp, lambda= seq(0,100,0.001))
   optimal_lambda_index <- which.min(model2$GCV) 
   ridge.coeffs = model2$coef[,optimal_lambda_index]/ model2$scales # Unscale x vars
@@ -84,7 +105,7 @@ for (b in 1:B){
   error_results[iterator, 1:4] <- c('Ridge\nRegression', b, rmse_test, 'Test')
   iterator <- iterator + 1
   
-  # 3) Lasso Regression
+  # 4) Lasso Regression
   model3 <- lars(as.matrix(traintemp[,2:ncol(traintemp)]), traintemp$LogSalePrice, type= "lasso", trace= TRUE)
   Cps <- summary(model3)$Cp
   optimal_lambda_index <- which.min(Cps)
@@ -99,7 +120,7 @@ for (b in 1:B){
   error_results[iterator, 1:4] <- c('Lasso\nRegression', b, rmse_test, 'Test')
   iterator <- iterator + 1
   
-  # 4) Random Forest
+  # 5) Random Forest
   modellist <- list()
   control <- trainControl(method='boot',
                           number=5,
@@ -143,7 +164,7 @@ for (b in 1:B){
   error_results[iterator, 1:4] <- c('Random\nForest', b, rmse_test, 'Test')
   iterator <- iterator + 1
   
-  # 5) KNN
+  # 6) KNN
   trctrl <- trainControl(method = "repeatedcv", number = 10, repeats = 5)
   knn_fit <- train(LogSalePrice ~., data = traintemp, method = "knn",
                    trControl=trctrl,
@@ -158,12 +179,12 @@ for (b in 1:B){
   error_results[iterator, 1:4] <- c('KNN', b, rmse_test, 'Test')
   iterator <- iterator + 1
   
-  # 6) Ensemble Method
-  predictions_train_ensemble <- rowMeans(cbind(predictions_train_LR, predictions_train_Ridge,
-                                               predictions_train_Lasso, predictions_train_RF, predictions_train_KNN))
+  # 7) Ensemble Method
+  predictions_train_ensemble <- rowMeans(cbind(predictions_train_Ridge,
+                                               predictions_train_RF))
   rmse_train <- sqrt(mean((ytrain - predictions_train_ensemble)^2))
-  predictions_test_ensemble <- rowMeans(cbind(predictions_test_LR, predictions_test_Ridge,
-                                              predictions_test_Lasso, predictions_test_RF, predictions_test_KNN))
+  predictions_test_ensemble <- rowMeans(cbind(predictions_test_Ridge,
+                                              predictions_test_RF))
   rmse_test <- sqrt(mean((ytest - predictions_test_ensemble)^2))
   error_results[iterator, 1:4] <- c('Ensemble', b, rmse_train, 'Train')
   iterator <- iterator + 1
