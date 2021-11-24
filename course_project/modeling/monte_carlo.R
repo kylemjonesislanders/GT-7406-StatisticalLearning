@@ -70,13 +70,7 @@ for (b in 1:B){
   iterator <- iterator + 1
   
   # 2) Linear regression significant vars
-  significnat_vars <-c("LogSalePrice", "LotFrontage", "YearRemodAdd", "NeighborhoodInt",
-                       "ExterQualInt", "ExterCondInt", "HeatingQCInt",
-                       "KitchenQualInt", "TotalSquareFootage", "TotalBathooms",
-                       "SaleConditionAbnorml", "SaleConditionFamily", 
-                       "SaleConditionPartial", "GarageCars", "FirePlace", 
-                       "CentralAirConditioning", "PartialxTotalSquareFootage",
-                       "MSZone_C")
+  significnat_vars <-c("LogSalePrice", "NeighborhoodInt", "TotalSquareFootage")
   traintemp_subset <- traintemp[ , significnat_vars]
   testtemp_subset <- testtemp[ , significnat_vars]
   model1b <- lm(LogSalePrice ~ ., data = traintemp_subset)
@@ -211,3 +205,20 @@ ggplot(plot_df, aes(x = Model, y = Value, fill=Group)) +
        xlab("Model") +
        theme(legend.title=element_blank())
 dev.off()
+
+# Save median errors for each model
+error_df <- as.data.frame(error_results)
+colnames(error_df) <- c("model", 'iteration', 'error', 'group')
+error_df <- transform(error_df, iteration = as.numeric(iteration), error = as.numeric(error))
+unique_models <- unique(error_df$model)
+median_results <- matrix(ncol=3, nrow=7)
+iterator <- 1
+for(model in unique_models){
+  temp_dat_train <- error_df[which(error_df$model==model&error_df$group=='Train'), ]
+  temp_dat_test <- error_df[which(error_df$model==model&error_df$group=='Test'), ]
+  median_results[iterator, 1:3] <- c(model, median(temp_dat_train$error), median(temp_dat_test$error))
+  iterator <- iterator + 1
+}
+median_results <- as.data.frame(median_results)
+colnames(median_results) <- c("model", 'train_median_error', 'test_median_error')
+write.csv(median_results, './modeling/monte_carlo_errors.csv', row.names=FALSE)

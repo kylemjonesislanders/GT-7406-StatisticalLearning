@@ -1,8 +1,0 @@
-﻿Method,Median Test Error
-Ensemble,0.1310565
-KNN,0.192
-Lasso,0.1356564
-Linear,0.1360334
-Linear (subset),0.1403819
-Random Forest,0.1360486
-Ridge Regression,0.1359452
