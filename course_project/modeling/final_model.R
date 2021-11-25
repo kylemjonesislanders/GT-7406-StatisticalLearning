@@ -85,6 +85,16 @@ rf_optimal <- randomForest(LogSalePrice ~.,
                            ntree= optimal_ntree,
                            mtry=optimal_mtry,
                            importance=TRUE)
+## Plot of cross validation error
+library(ggplot2)
+jpeg(file="./modeling/images/RFOptimization.jpeg",
+     width=750, height=450)
+final_df$ntree <- factor(final_df$ntree, levels = c('3', '10', '100', '500'))
+ggplot(final_df, aes(x = mtry, y = RMSE, color = ntree, group = ntree)) +
+  geom_point() + geom_line() + theme_bw(base_size = 20) +
+  scale_x_continuous(breaks = c(1:10),
+                     labels = c('1', '2', '3', '4', '5', '6', '7', '8', '9', '10'))
+dev.off()
 
 # Predictions on Train Set
 predictions_train_RF <- predict(rf_optimal, train_dat)
