@@ -123,6 +123,10 @@ predictions_train_RF <- predict(rf_optimal, train_dat)
 predictions_train_Lasso <- predict(cv_lasso, as.matrix(train_dat[,2:ncol(train_dat)]), s = "lambda.1se")
 predictions_train_ensemble <- rowMeans(cbind(predictions_train_RF,predictions_train_Lasso))
 rmse_train <- sqrt(mean((train_dat$LogSalePrice - predictions_train_ensemble)^2))
+## Mean Absolute Deviation
+mean_deviation <- mean(abs(exp(train_dat$LogSalePrice) - exp(predictions_train_ensemble)))
+mean_pct_error <- mean(abs((exp(train_dat$LogSalePrice) - exp(predictions_train_ensemble))/exp(train_dat$LogSalePrice)))
+
 
 # Predict on Test Set
 predictions_test_RF <- predict(rf_optimal, test_dat)
