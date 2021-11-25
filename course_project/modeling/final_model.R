@@ -4,12 +4,9 @@ rm(list=ls())
 # Libraries
 library("ggplot2")
 library("scales")
-library("Hmisc")
-library("leaps")
-library("MASS")
-library("lars")
 library("randomForest")
 library("caret")
+library("glmnet")
 
 # Set working directory
 setwd("/Users/kjone332/Desktop/RStudio_Projects/GT-7406-StatisticalLearning/course_project")
@@ -45,19 +42,32 @@ for(col in continuous_predictors){
 }
 
 # Build ensemble model (Best CV validation hyperparameters on train for Lasso + Random Forest)
-## Lasso
-lasso_model <- lars(as.matrix(train_dat[,2:ncol(train_dat)]), train_dat$LogSalePrice, 
-                    type= "lasso", trace= TRUE)
-Cps <- summary(lasso_model)$Cp
-optimal_lambda_index <- which.min(Cps)
-optimal_lambda <- lasso_model$lambda[optimal_lambda_index]
-## Random Forest
+## 1) Lasso
+cv_lasso <- glmnet::cv.glmnet(as.matrix(train_dat[,2:ncol(train_dat)]), train_dat$LogSalePrice)
+### Plot of Variable Importance
+lasso_coefficients <- coef(cv_lasso, s = "lambda.1se")
+summ <- summary(lasso_coefficients)
+plot_df <- data.frame(Predictor = rownames(lasso_coefficients)[summ$i],
+                      Coefficient = summ$x)
+plot_df <- plot_df[which(plot_df$Predictor!='(Intercept)'), ]
+plot_df$AbsCoefficient <- abs(plot_df$Coefficient)
+plot_df <- plot_df[order(-plot_df$AbsCoefficient),]
+plot_df$Num <- c(1:nrow(plot_df))
+jpeg(file="./modeling/images/VarImportanceLasso.jpeg",
+     width=500, height=500)
+ggplot(plot_df, aes(x=reorder(Predictor, -Num), y=Coefficient)) +
+  geom_bar(stat='identity') +
+  coord_flip() +
+  xlab("Predictor") +
+  ylab("Lasso Scaled Coefficient") +
+  theme_bw(base_size = 16)
+dev.off()
+
+## 2) Random Forest
 modellist <- list()
-control <- trainControl(method='boot',
-                        number=5,
-                        search='grid')
-tunegrid <- expand.grid(.mtry = (1:10))
-for (ntree in c(3, 10, 100, 500)){
+control <- trainControl(method='boot', number=10, search='grid')
+tunegrid <- expand.grid(.mtry = (5:15))
+for (ntree in c(100, 500, 1000)){
   fit <- train(LogSalePrice ~ .,
                data = train_dat,
                method = 'rf',
@@ -68,15 +78,13 @@ for (ntree in c(3, 10, 100, 500)){
   key <- toString(ntree)
   modellist[[key]] <- fit
 }
-results_3 <- modellist$`3`$results[, c('mtry', 'RMSE')]
-results_3$ntree <- 3
-results_10 <- modellist$`10`$results[, c('mtry', 'RMSE')]
-results_10$ntree <- 10
 results_100 <- modellist$`100`$results[, c('mtry', 'RMSE')]
 results_100$ntree <- 100
 results_500 <- modellist$`500`$results[, c('mtry', 'RMSE')]
 results_500$ntree <- 500
-final_df <- rbind(results_3, results_10, results_100, results_500)
+results_1000 <- modellist$`1000`$results[, c('mtry', 'RMSE')]
+results_1000$ntree <- 1000
+final_df <- rbind(results_100, results_500, results_1000)
 best_result <- final_df[which(final_df$RMSE==min(final_df$RMSE)), ]
 optimal_mtry <- best_result$mtry
 optimal_ntree <- best_result$ntree
@@ -85,28 +93,40 @@ rf_optimal <- randomForest(LogSalePrice ~.,
                            ntree= optimal_ntree,
                            mtry=optimal_mtry,
                            importance=TRUE)
-## Plot of cross validation error
-library(ggplot2)
+### Plot of cross validation error
 jpeg(file="./modeling/images/RFOptimization.jpeg",
      width=750, height=450)
-final_df$ntree <- factor(final_df$ntree, levels = c('3', '10', '100', '500'))
+final_df$ntree <- factor(final_df$ntree, levels = c('100', '500', '1000'))
 ggplot(final_df, aes(x = mtry, y = RMSE, color = ntree, group = ntree)) +
   geom_point() + geom_line() + theme_bw(base_size = 20) +
-  scale_x_continuous(breaks = c(1:10),
-                     labels = c('1', '2', '3', '4', '5', '6', '7', '8', '9', '10'))
+  scale_x_continuous(breaks = c(5:15),
+                     labels = c('5', '6', '7', '8', '9', '10', '11', '12', '13', '14', '15'))
+dev.off()
+### Plot of variable importance
+var_importance_rf <- data.frame(importance(rf_optimal))
+var_importance_rf <- var_importance_rf[which(var_importance_rf$X.IncMSE>=5), ]
+var_importance_rf <- var_importance_rf[order(-var_importance_rf$X.IncMSE),]
+var_importance_rf$Num <- c(1:nrow(var_importance_rf))
+var_importance_rf$Predictor <- rownames(var_importance_rf)
+jpeg(file="./modeling/images/VarImportanceRF.jpeg",
+     width=500, height=500)
+ggplot(var_importance_rf, aes(x=reorder(Predictor, -Num), y=X.IncMSE)) +
+  geom_bar(stat='identity') +
+  coord_flip() +
+  xlab("Predictor") +
+  ylab("Mean Decrease in MSE") +
+  theme_bw(base_size = 16)
 dev.off()
 
 # Predictions on Train Set
 predictions_train_RF <- predict(rf_optimal, train_dat)
-predictions_train_Lasso <- predict(lasso_model, 
-                                   as.matrix(train_dat[,2:ncol(train_dat)]), s=optimal_lambda, type="fit", mode="lambda")$fit
+predictions_train_Lasso <- predict(cv_lasso, as.matrix(train_dat[,2:ncol(train_dat)]), s = "lambda.1se")
 predictions_train_ensemble <- rowMeans(cbind(predictions_train_RF,predictions_train_Lasso))
 rmse_train <- sqrt(mean((train_dat$LogSalePrice - predictions_train_ensemble)^2))
 
 # Predict on Test Set
 predictions_test_RF <- predict(rf_optimal, test_dat)
-predictions_test_Lasso <- predict(lasso_model, 
-                                  as.matrix(test_dat[,1:ncol(test_dat)]), s=optimal_lambda, type="fit", mode="lambda")$fit
+predictions_test_Lasso <- predict(cv_lasso, as.matrix(test_dat[,1:ncol(test_dat)]), s = "lambda.1se")
 predictions_test_ensemble <- rowMeans(cbind(predictions_test_RF, predictions_test_Lasso))
 
 # Create submission csv file
