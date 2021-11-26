@@ -119,13 +119,32 @@ ggplot(var_importance_rf, aes(x=reorder(Predictor, -Num), y=X.IncMSE)) +
 dev.off()
 
 # Predictions on Train Set
+## All Predictors
 predictions_train_RF <- predict(rf_optimal, train_dat)
-predictions_train_Lasso <- predict(cv_lasso, as.matrix(train_dat[,2:ncol(train_dat)]), s = "lambda.1se")
+predictions_train_Lasso <- predict(cv_lasso, as.matrix(train_dat[,2:ncol(train_dat)]), 
+                                   s = "lambda.1se")[,1]
 predictions_train_ensemble <- rowMeans(cbind(predictions_train_RF,predictions_train_Lasso))
 rmse_train <- sqrt(mean((train_dat$LogSalePrice - predictions_train_ensemble)^2))
-## Mean Absolute Deviation
-mean_deviation <- mean(abs(exp(train_dat$LogSalePrice) - exp(predictions_train_ensemble)))
-mean_pct_error <- mean(abs((exp(train_dat$LogSalePrice) - exp(predictions_train_ensemble))/exp(train_dat$LogSalePrice)))
+## Subset
+cv_lasso_subset <- glmnet::cv.glmnet(as.matrix(train_dat[,c("TotalSquareFootage", "NeighborhoodInt")]), train_dat$LogSalePrice)
+predictions_train_Lasso_subset <- predict(cv_lasso_subset, as.matrix(train_dat[,c("TotalSquareFootage", "NeighborhoodInt")]), 
+                                          s = "lambda.1se")[,1]
+rmse_train_subset <- sqrt(mean((train_dat$LogSalePrice - predictions_train_Lasso_subset)^2))
+## Plot - Absolute Deviation
+abs_deviation_full <- round(abs(exp(train_dat$LogSalePrice) - exp(predictions_train_ensemble)))
+abs_deviation_subset <- round(abs(exp(train_dat$LogSalePrice) - exp(predictions_train_Lasso_subset)))
+full_df <- data.frame(group='stacking ensemble', error=abs_deviation_full)
+subset_df <- data.frame(group='regression subset', error=abs_deviation_subset)
+plot_df <- rbind(full_df, subset_df)
+jpeg(file="./modeling/images/absolute_deviation_train.jpeg",
+     width=600, height=350)
+ggplot(plot_df, aes(x = group, y = error)) +
+       geom_boxplot() + 
+       theme_bw(base_size = 16) + 
+       xlab(" ") +
+       ylab("Absolute Deviation") +
+       scale_y_continuous(labels=function(x) paste0('$', format(x, nsmall=0, big.mark=",")))
+dev.off()
 
 
 # Predict on Test Set
