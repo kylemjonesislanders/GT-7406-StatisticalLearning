@@ -1,3 +1,3 @@
-# GT-7406-StatisticalLearning
+# gt-statistical-learning
 
-my files from Fall 2021 Statistical Learning course.
+knowledge check relevant code and final project files from Georgia Tech's Fall 2021 statistical Learning course.
